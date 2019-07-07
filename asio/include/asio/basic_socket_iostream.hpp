@@ -2,7 +2,7 @@
 // basic_socket_iostream.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -23,6 +23,10 @@
 #include <ostream>
 #include "asio/basic_socket_streambuf.hpp"
 
+#if defined(ASIO_ENABLE_OLD_SERVICES)
+# include "asio/stream_socket_service.hpp"
+#endif // defined(ASIO_ENABLE_OLD_SERVICES)
+
 #if !defined(ASIO_HAS_VARIADIC_TEMPLATES)
 
 # include "asio/detail/variadic_templates.hpp"
@@ -32,7 +36,8 @@
 //   explicit basic_socket_iostream(T1 x1, ..., Tn xn)
 //     : std::basic_iostream<char>(
 //         &this->detail::socket_iostream_base<
-//           Protocol, Clock, WaitTraits>::streambuf_)
+//           Protocol ASIO_SVC_TARG, Time,
+//           TimeTraits ASIO_SVC_TARG1>::streambuf_)
 //   {
 //     if (rdbuf()->connect(x1, ..., xn) == 0)
 //       this->setstate(std::ios_base::failbit);
@@ -44,7 +49,8 @@
   explicit basic_socket_iostream(ASIO_VARIADIC_BYVAL_PARAMS(n)) \
     : std::basic_iostream<char>( \
         &this->detail::socket_iostream_base< \
-          Protocol, Clock, WaitTraits>::streambuf_) \
+          Protocol ASIO_SVC_TARG, Time, \
+          TimeTraits ASIO_SVC_TARG1>::streambuf_) \
   { \
     this->setf(std::ios_base::unitbuf); \
     if (rdbuf()->connect(ASIO_VARIADIC_BYVAL_ARGS(n)) == 0) \
@@ -79,33 +85,13 @@ namespace detail {
 
 // A separate base class is used to ensure that the streambuf is initialised
 // prior to the basic_socket_iostream's basic_iostream base class.
-template <typename Protocol, typename Clock, typename WaitTraits>
+template <typename Protocol ASIO_SVC_TPARAM,
+    typename Time, typename TimeTraits ASIO_SVC_TPARAM1>
 class socket_iostream_base
 {
 protected:
-  socket_iostream_base()
-  {
-  }
-
-#if defined(ASIO_HAS_MOVE)
-  socket_iostream_base(socket_iostream_base&& other)
-    : streambuf_(std::move(other.streambuf_))
-  {
-  }
-
-  socket_iostream_base(basic_stream_socket<Protocol> s)
-    : streambuf_(std::move(s))
-  {
-  }
-
-  socket_iostream_base& operator=(socket_iostream_base&& other)
-  {
-    streambuf_ = std::move(other.streambuf_);
-    return *this;
-  }
-#endif // defined(ASIO_HAS_MOVE)
-
-  basic_socket_streambuf<Protocol, Clock, WaitTraits> streambuf_;
+  basic_socket_streambuf<Protocol ASIO_SVC_TARG,
+    Time, TimeTraits ASIO_SVC_TARG1> streambuf_;
 };
 
 } // namespace detail
@@ -114,17 +100,17 @@ protected:
 #define ASIO_BASIC_SOCKET_IOSTREAM_FWD_DECL
 
 // Forward declaration with defaulted arguments.
-template <typename Protocol,
-#if defined(ASIO_HAS_BOOST_DATE_TIME) \
-  && defined(ASIO_USE_BOOST_DATE_TIME_FOR_SOCKET_IOSTREAM)
-    typename Clock = boost::posix_time::ptime,
-    typename WaitTraits = time_traits<Clock> >
-#else // defined(ASIO_HAS_BOOST_DATE_TIME)
-      // && defined(ASIO_USE_BOOST_DATE_TIME_FOR_SOCKET_IOSTREAM)
-    typename Clock = chrono::steady_clock,
-    typename WaitTraits = wait_traits<Clock> >
-#endif // defined(ASIO_HAS_BOOST_DATE_TIME)
-       // && defined(ASIO_USE_BOOST_DATE_TIME_FOR_SOCKET_IOSTREAM)
+template <typename Protocol
+    ASIO_SVC_TPARAM_DEF1(= stream_socket_service<Protocol>),
+#if defined(ASIO_HAS_BOOST_DATE_TIME)
+    typename Time = boost::posix_time::ptime,
+    typename TimeTraits = time_traits<Time>
+    ASIO_SVC_TPARAM1_DEF2(= deadline_timer_service<Time, TimeTraits>)>
+#else
+    typename Time = chrono::steady_clock,
+    typename TimeTraits = wait_traits<Time>
+    ASIO_SVC_TPARAM1_DEF1(= steady_timer::service_type)>
+#endif
 class basic_socket_iostream;
 
 #endif // !defined(ASIO_BASIC_SOCKET_IOSTREAM_FWD_DECL)
@@ -132,49 +118,42 @@ class basic_socket_iostream;
 /// Iostream interface for a socket.
 #if defined(GENERATING_DOCUMENTATION)
 template <typename Protocol,
-    typename Clock = chrono::steady_clock,
-    typename WaitTraits = wait_traits<Clock> >
+    typename Time = chrono::steady_clock,
+    typename TimeTraits = wait_traits<Time> >
 #else // defined(GENERATING_DOCUMENTATION)
-template <typename Protocol, typename Clock, typename WaitTraits>
+template <typename Protocol ASIO_SVC_TPARAM,
+    typename Time, typename TimeTraits ASIO_SVC_TPARAM1>
 #endif // defined(GENERATING_DOCUMENTATION)
 class basic_socket_iostream
-  : private detail::socket_iostream_base<Protocol, Clock, WaitTraits>,
+  : private detail::socket_iostream_base<Protocol
+        ASIO_SVC_TARG, Time, TimeTraits ASIO_SVC_TARG1>,
     public std::basic_iostream<char>
 {
 private:
   // These typedefs are intended keep this class's implementation independent
-  // of whether it's using Boost.DateClock, Boost.Chrono or std::chrono.
-#if defined(ASIO_HAS_BOOST_DATE_TIME) \
-  && defined(ASIO_USE_BOOST_DATE_TIME_FOR_SOCKET_IOSTREAM)
-  typedef WaitTraits traits_helper;
-#else // defined(ASIO_HAS_BOOST_DATE_TIME)
-      // && defined(ASIO_USE_BOOST_DATE_TIME_FOR_SOCKET_IOSTREAM)
-  typedef detail::chrono_time_traits<Clock, WaitTraits> traits_helper;
-#endif // defined(ASIO_HAS_BOOST_DATE_TIME)
-       // && defined(ASIO_USE_BOOST_DATE_TIME_FOR_SOCKET_IOSTREAM)
+  // of whether it's using Boost.DateTime, Boost.Chrono or std::chrono.
+#if defined(ASIO_HAS_BOOST_DATE_TIME)
+  typedef TimeTraits traits_helper;
+#else
+  typedef detail::chrono_time_traits<Time, TimeTraits> traits_helper;
+#endif
 
 public:
-  /// The protocol type.
-  typedef Protocol protocol_type;
-
   /// The endpoint type.
   typedef typename Protocol::endpoint endpoint_type;
 
-  /// The clock type.
-  typedef Clock clock_type;
-
 #if defined(GENERATING_DOCUMENTATION)
   /// (Deprecated: Use time_point.) The time type.
-  typedef typename WaitTraits::time_type time_type;
+  typedef typename TimeTraits::time_type time_type;
 
   /// The time type.
-  typedef typename WaitTraits::time_point time_point;
+  typedef typename TimeTraits::time_point time_point;
 
   /// (Deprecated: Use duration.) The duration type.
-  typedef typename WaitTraits::duration_type duration_type;
+  typedef typename TimeTraits::duration_type duration_type;
 
   /// The duration type.
-  typedef typename WaitTraits::duration duration;
+  typedef typename TimeTraits::duration duration;
 #else
 # if !defined(ASIO_NO_DEPRECATED)
   typedef typename traits_helper::time_type time_type;
@@ -188,46 +167,11 @@ public:
   basic_socket_iostream()
     : std::basic_iostream<char>(
         &this->detail::socket_iostream_base<
-          Protocol, Clock, WaitTraits>::streambuf_)
+          Protocol ASIO_SVC_TARG, Time,
+          TimeTraits ASIO_SVC_TARG1>::streambuf_)
   {
     this->setf(std::ios_base::unitbuf);
   }
-
-#if defined(ASIO_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
-  /// Construct a basic_socket_iostream from the supplied socket.
-  explicit basic_socket_iostream(basic_stream_socket<protocol_type> s)
-    : detail::socket_iostream_base<
-        Protocol, Clock, WaitTraits>(std::move(s)),
-      std::basic_iostream<char>(
-        &this->detail::socket_iostream_base<
-          Protocol, Clock, WaitTraits>::streambuf_)
-  {
-    this->setf(std::ios_base::unitbuf);
-  }
-
-#if defined(ASIO_HAS_STD_IOSTREAM_MOVE) \
-  || defined(GENERATING_DOCUMENTATION)
-  /// Move-construct a basic_socket_iostream from another.
-  basic_socket_iostream(basic_socket_iostream&& other)
-    : detail::socket_iostream_base<
-        Protocol, Clock, WaitTraits>(std::move(other)),
-      std::basic_iostream<char>(std::move(other))
-  {
-    this->set_rdbuf(&this->detail::socket_iostream_base<
-          Protocol, Clock, WaitTraits>::streambuf_);
-  }
-
-  /// Move-assign a basic_socket_iostream from another.
-  basic_socket_iostream& operator=(basic_socket_iostream&& other)
-  {
-    std::basic_iostream<char>::operator=(std::move(other));
-    detail::socket_iostream_base<
-        Protocol, Clock, WaitTraits>::operator=(std::move(other));
-    return *this;
-  }
-#endif // defined(ASIO_HAS_STD_IOSTREAM_MOVE)
-       //   || defined(GENERATING_DOCUMENTATION)
-#endif // defined(ASIO_HAS_MOVE) || defined(GENERATING_DOCUMENTATION)
 
 #if defined(GENERATING_DOCUMENTATION)
   /// Establish a connection to an endpoint corresponding to a resolver query.
@@ -243,7 +187,8 @@ public:
   explicit basic_socket_iostream(T... x)
     : std::basic_iostream<char>(
         &this->detail::socket_iostream_base<
-          Protocol, Clock, WaitTraits>::streambuf_)
+          Protocol ASIO_SVC_TARG, Time,
+          TimeTraits ASIO_SVC_TARG1>::streambuf_)
   {
     this->setf(std::ios_base::unitbuf);
     if (rdbuf()->connect(x...) == 0)
@@ -281,15 +226,18 @@ public:
   }
 
   /// Return a pointer to the underlying streambuf.
-  basic_socket_streambuf<Protocol, Clock, WaitTraits>* rdbuf() const
+  basic_socket_streambuf<Protocol ASIO_SVC_TARG,
+    Time, TimeTraits ASIO_SVC_TARG1>* rdbuf() const
   {
-    return const_cast<basic_socket_streambuf<Protocol, Clock, WaitTraits>*>(
+    return const_cast<basic_socket_streambuf<Protocol ASIO_SVC_TARG,
+      Time, TimeTraits ASIO_SVC_TARG1>*>(
         &this->detail::socket_iostream_base<
-          Protocol, Clock, WaitTraits>::streambuf_);
+          Protocol ASIO_SVC_TARG, Time,
+          TimeTraits ASIO_SVC_TARG1>::streambuf_);
   }
 
   /// Get a reference to the underlying socket.
-  basic_socket<Protocol>& socket()
+  basic_socket<Protocol ASIO_SVC_TARG>& socket()
   {
     return rdbuf()->socket();
   }
@@ -385,12 +333,6 @@ public:
     rdbuf()->expires_from_now(expiry_time);
   }
 #endif // !defined(ASIO_NO_DEPRECATED)
-
-private:
-  // Disallow copying and assignment.
-  basic_socket_iostream(const basic_socket_iostream&) ASIO_DELETED;
-  basic_socket_iostream& operator=(
-      const basic_socket_iostream&) ASIO_DELETED;
 };
 
 } // namespace asio

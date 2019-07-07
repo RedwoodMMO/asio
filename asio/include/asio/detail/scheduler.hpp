@@ -2,7 +2,7 @@
 // detail/scheduler.hpp
 // ~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,12 +20,11 @@
 #include "asio/error_code.hpp"
 #include "asio/execution_context.hpp"
 #include "asio/detail/atomic_count.hpp"
-#include "asio/detail/conditionally_enabled_event.hpp"
-#include "asio/detail/conditionally_enabled_mutex.hpp"
+#include "asio/detail/event.hpp"
+#include "asio/detail/mutex.hpp"
 #include "asio/detail/op_queue.hpp"
 #include "asio/detail/reactor_fwd.hpp"
 #include "asio/detail/scheduler_operation.hpp"
-#include "asio/detail/thread.hpp"
 #include "asio/detail/thread_context.hpp"
 
 #include "asio/detail/push_options.hpp"
@@ -45,10 +44,7 @@ public:
   // Constructor. Specifies the number of concurrent threads that are likely to
   // run the scheduler. If set to 1 certain optimisation are performed.
   ASIO_DECL scheduler(asio::execution_context& ctx,
-      int concurrency_hint = 0, bool own_thread = true);
-
-  // Destructor.
-  ASIO_DECL ~scheduler();
+      int concurrency_hint = 0);
 
   // Destroy all user-defined handler objects owned by the service.
   ASIO_DECL void shutdown();
@@ -125,19 +121,7 @@ public:
   // work_started() was previously called for the operations.
   ASIO_DECL void abandon_operations(op_queue<operation>& ops);
 
-  // Get the concurrency hint that was used to initialise the scheduler.
-  int concurrency_hint() const
-  {
-    return concurrency_hint_;
-  }
-
 private:
-  // The mutex type used by this scheduler.
-  typedef conditionally_enabled_mutex mutex;
-
-  // The event type used by this scheduler.
-  typedef conditionally_enabled_event event;
-
   // Structure containing thread-specific data.
   typedef scheduler_thread_info thread_info;
 
@@ -159,10 +143,6 @@ private:
   // Wake a single idle thread, or the task, and always unlock the mutex.
   ASIO_DECL void wake_one_thread_and_unlock(
       mutex::scoped_lock& lock);
-
-  // Helper class to run the scheduler in its own thread.
-  class thread_function;
-  friend class thread_function;
 
   // Helper class to perform task-related operations on block exit.
   struct task_cleanup;
@@ -204,12 +184,6 @@ private:
 
   // Flag to indicate that the dispatcher has been shut down.
   bool shutdown_;
-
-  // The concurrency hint used to initialise the scheduler.
-  const int concurrency_hint_;
-
-  // The thread that is running the scheduler.
-  asio::detail::thread* thread_;
 };
 
 } // namespace detail

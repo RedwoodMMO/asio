@@ -2,7 +2,7 @@
 // strand.hpp
 // ~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -148,7 +148,7 @@ public:
   }
 
   /// Obtain the underlying execution context.
-  execution_context& context() const ASIO_NOEXCEPT
+  execution_context& context() ASIO_NOEXCEPT
   {
     return executor_.context();
   }
@@ -157,7 +157,7 @@ public:
   /**
    * The strand delegates this call to its underlying executor.
    */
-  void on_work_started() const ASIO_NOEXCEPT
+  void on_work_started() ASIO_NOEXCEPT
   {
     executor_.on_work_started();
   }
@@ -166,7 +166,7 @@ public:
   /**
    * The strand delegates this call to its underlying executor.
    */
-  void on_work_finished() const ASIO_NOEXCEPT
+  void on_work_finished() ASIO_NOEXCEPT
   {
     executor_.on_work_finished();
   }
@@ -187,7 +187,7 @@ public:
    * internal storage needed for function invocation.
    */
   template <typename Function, typename Allocator>
-  void dispatch(ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+  void dispatch(ASIO_MOVE_ARG(Function) f, const Allocator& a)
   {
     detail::strand_executor_service::dispatch(impl_,
         executor_, ASIO_MOVE_CAST(Function)(f), a);
@@ -207,7 +207,7 @@ public:
    * internal storage needed for function invocation.
    */
   template <typename Function, typename Allocator>
-  void post(ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+  void post(ASIO_MOVE_ARG(Function) f, const Allocator& a)
   {
     detail::strand_executor_service::post(impl_,
         executor_, ASIO_MOVE_CAST(Function)(f), a);
@@ -227,7 +227,7 @@ public:
    * internal storage needed for function invocation.
    */
   template <typename Function, typename Allocator>
-  void defer(ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+  void defer(ASIO_MOVE_ARG(Function) f, const Allocator& a)
   {
     detail::strand_executor_service::defer(impl_,
         executor_, ASIO_MOVE_CAST(Function)(f), a);
@@ -270,33 +270,6 @@ private:
     implementation_type;
   implementation_type impl_;
 };
-
-/** @defgroup make_strand asio::make_strand
- *
- * @brief The asio::make_strand function creates a @ref strand object for
- * an executor or execution context.
- */
-/*@{*/
-
-/// Create a @ref strand object for an executor.
-template <typename Executor>
-inline strand<Executor> make_strand(const Executor& ex,
-    typename enable_if<is_executor<Executor>::value>::type* = 0)
-{
-  return strand<Executor>(ex);
-}
-
-/// Create a @ref strand object for an execution context.
-template <typename ExecutionContext>
-inline strand<typename ExecutionContext::executor_type>
-make_strand(ExecutionContext& ctx,
-    typename enable_if<
-      is_convertible<ExecutionContext&, execution_context&>::value>::type* = 0)
-{
-  return strand<typename ExecutionContext::executor_type>(ctx.get_executor());
-}
-
-/*@}*/
 
 } // namespace asio
 

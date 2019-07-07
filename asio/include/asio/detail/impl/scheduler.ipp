@@ -2,7 +2,7 @@
 // detail/impl/scheduler.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,36 +17,16 @@
 
 #include "asio/detail/config.hpp"
 
-#include "asio/detail/concurrency_hint.hpp"
 #include "asio/detail/event.hpp"
 #include "asio/detail/limits.hpp"
 #include "asio/detail/reactor.hpp"
 #include "asio/detail/scheduler.hpp"
 #include "asio/detail/scheduler_thread_info.hpp"
-#include "asio/detail/signal_blocker.hpp"
 
 #include "asio/detail/push_options.hpp"
 
 namespace asio {
 namespace detail {
-
-class scheduler::thread_function
-{
-public:
-  explicit thread_function(scheduler* s)
-    : this_(s)
-  {
-  }
-
-  void operator()()
-  {
-    asio::error_code ec;
-    this_->run(ec);
-  }
-
-private:
-  scheduler* this_;
-};
 
 struct scheduler::task_cleanup
 {
@@ -103,58 +83,25 @@ struct scheduler::work_cleanup
   thread_info* this_thread_;
 };
 
-scheduler::scheduler(asio::execution_context& ctx,
-    int concurrency_hint, bool own_thread)
+scheduler::scheduler(
+    asio::execution_context& ctx, int concurrency_hint)
   : asio::detail::execution_context_service_base<scheduler>(ctx),
-    one_thread_(concurrency_hint == 1
-        || !ASIO_CONCURRENCY_HINT_IS_LOCKING(
-          SCHEDULER, concurrency_hint)
-        || !ASIO_CONCURRENCY_HINT_IS_LOCKING(
-          REACTOR_IO, concurrency_hint)),
-    mutex_(ASIO_CONCURRENCY_HINT_IS_LOCKING(
-          SCHEDULER, concurrency_hint)),
+    one_thread_(concurrency_hint == 1),
+    mutex_(),
     task_(0),
     task_interrupted_(true),
     outstanding_work_(0),
     stopped_(false),
-    shutdown_(false),
-    concurrency_hint_(concurrency_hint),
-    thread_(0)
+    shutdown_(false)
 {
   ASIO_HANDLER_TRACKING_INIT;
-
-  if (own_thread)
-  {
-    ++outstanding_work_;
-    asio::detail::signal_blocker sb;
-    thread_ = new asio::detail::thread(thread_function(this));
-  }
-}
-
-scheduler::~scheduler()
-{
-  if (thread_)
-  {
-    thread_->join();
-    delete thread_;
-  }
 }
 
 void scheduler::shutdown()
 {
   mutex::scoped_lock lock(mutex_);
   shutdown_ = true;
-  if (thread_)
-    stop_all_threads(lock);
   lock.unlock();
-
-  // Join thread to ensure task operation is returned to queue.
-  if (thread_)
-  {
-    thread_->join();
-    delete thread_;
-    thread_ = 0;
-  }
 
   // Destroy handler objects.
   while (!op_queue_.empty())

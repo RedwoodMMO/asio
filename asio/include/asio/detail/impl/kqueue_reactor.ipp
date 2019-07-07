@@ -2,7 +2,7 @@
 // detail/impl/kqueue_reactor.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 // Copyright (c) 2005 Stefan Arentz (stefan at soze dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -42,12 +42,10 @@ namespace detail {
 kqueue_reactor::kqueue_reactor(asio::execution_context& ctx)
   : execution_context_service_base<kqueue_reactor>(ctx),
     scheduler_(use_service<scheduler>(ctx)),
-    mutex_(ASIO_CONCURRENCY_HINT_IS_LOCKING(
-          REACTOR_REGISTRATION, scheduler_.concurrency_hint())),
+    mutex_(),
     kqueue_fd_(do_kqueue_create()),
     interrupter_(),
-    shutdown_(false),
-    registered_descriptors_mutex_(mutex_.enabled())
+    shutdown_(false)
 {
   struct kevent events[1];
   ASIO_KQUEUE_EV_SET(&events[0], interrupter_.read_descriptor(),
@@ -327,16 +325,10 @@ void kqueue_reactor::deregister_descriptor(socket_type descriptor,
           context(), static_cast<uintmax_t>(descriptor),
           reinterpret_cast<uintmax_t>(descriptor_data)));
 
-    scheduler_.post_deferred_completions(ops);
-
-    // Leave descriptor_data set so that it will be freed by the subsequent
-    // call to cleanup_descriptor_data.
-  }
-  else
-  {
-    // We are shutting down, so prevent cleanup_descriptor_data from freeing
-    // the descriptor_data object and let the destructor free it instead.
+    free_descriptor_state(descriptor_data);
     descriptor_data = 0;
+
+    scheduler_.post_deferred_completions(ops);
   }
 }
 
@@ -370,22 +362,6 @@ void kqueue_reactor::deregister_internal_descriptor(socket_type descriptor,
           context(), static_cast<uintmax_t>(descriptor),
           reinterpret_cast<uintmax_t>(descriptor_data)));
 
-    // Leave descriptor_data set so that it will be freed by the subsequent
-    // call to cleanup_descriptor_data.
-  }
-  else
-  {
-    // We are shutting down, so prevent cleanup_descriptor_data from freeing
-    // the descriptor_data object and let the destructor free it instead.
-    descriptor_data = 0;
-  }
-}
-
-void kqueue_reactor::cleanup_descriptor_data(
-    per_descriptor_data& descriptor_data)
-{
-  if (descriptor_data)
-  {
     free_descriptor_state(descriptor_data);
     descriptor_data = 0;
   }
@@ -520,8 +496,7 @@ int kqueue_reactor::do_kqueue_create()
 kqueue_reactor::descriptor_state* kqueue_reactor::allocate_descriptor_state()
 {
   mutex::scoped_lock descriptors_lock(registered_descriptors_mutex_);
-  return registered_descriptors_.alloc(ASIO_CONCURRENCY_HINT_IS_LOCKING(
-        REACTOR_IO, scheduler_.concurrency_hint()));
+  return registered_descriptors_.alloc();
 }
 
 void kqueue_reactor::free_descriptor_state(kqueue_reactor::descriptor_state* s)

@@ -2,7 +2,7 @@
 // detail/impl/win_iocp_handle_service.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 // Copyright (c) 2008 Rep Invariant Systems, Inc. (info@repinvariant.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -65,9 +65,10 @@ public:
   }
 };
 
-win_iocp_handle_service::win_iocp_handle_service(execution_context& context)
-  : execution_context_service_base<win_iocp_handle_service>(context),
-    iocp_service_(asio::use_service<win_iocp_io_context>(context)),
+win_iocp_handle_service::win_iocp_handle_service(
+    asio::io_context& io_context)
+  : service_base<win_iocp_handle_service>(io_context),
+    iocp_service_(asio::use_service<win_iocp_io_context>(io_context)),
     mutex_(),
     impl_list_(0)
 {
@@ -224,6 +225,9 @@ asio::error_code win_iocp_handle_service::close(
   return ec;
 }
 
+#pragma warning( push )
+#pragma warning( disable : 4191)
+
 asio::error_code win_iocp_handle_service::cancel(
     win_iocp_handle_service::implementation_type& impl,
     asio::error_code& ec)
@@ -293,6 +297,8 @@ asio::error_code win_iocp_handle_service::cancel(
 
   return ec;
 }
+
+#pragma warning( pop ) 
 
 size_t win_iocp_handle_service::do_write(
     win_iocp_handle_service::implementation_type& impl, uint64_t offset,

@@ -2,7 +2,7 @@
 // detail/impl/eventfd_select_interrupter.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 // Copyright (c) 2008 Roelof Naude (roelof.naude at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -23,7 +23,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#if __GLIBC__ == 2 && __GLIBC_MINOR__ < 8
+#if defined (__GLIBC__) && (__GLIBC__ == 2 && __GLIBC_MINOR__ < 8)
 # include <asm/unistd.h>
 #else // __GLIBC__ == 2 && __GLIBC_MINOR__ < 8
 # include <sys/eventfd.h>
@@ -45,7 +45,7 @@ eventfd_select_interrupter::eventfd_select_interrupter()
 
 void eventfd_select_interrupter::open_descriptors()
 {
-#if __GLIBC__ == 2 && __GLIBC_MINOR__ < 8
+#if defined(__GLIBC__) && __GLIBC__ == 2 && __GLIBC_MINOR__ < 8
   write_descriptor_ = read_descriptor_ = syscall(__NR_eventfd, 0);
   if (read_descriptor_ != -1)
   {

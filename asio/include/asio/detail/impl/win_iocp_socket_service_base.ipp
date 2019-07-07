@@ -2,7 +2,7 @@
 // detail/impl/win_iocp_socket_service_base.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -27,12 +27,11 @@ namespace asio {
 namespace detail {
 
 win_iocp_socket_service_base::win_iocp_socket_service_base(
-    execution_context& context)
-  : context_(context),
-    iocp_service_(use_service<win_iocp_io_context>(context)),
+    asio::io_context& io_context)
+  : io_context_(io_context),
+    iocp_service_(use_service<win_iocp_io_context>(io_context)),
     reactor_(0),
     connect_ex_(0),
-    nt_set_info_(0),
     mutex_(),
     impl_list_(0)
 {
@@ -45,6 +44,7 @@ void win_iocp_socket_service_base::base_shutdown()
   base_implementation_type* impl = impl_list_;
   while (impl)
   {
+    asio::error_code ignored_ec;
     close_for_destruction(*impl);
     impl = impl->next_;
   }
@@ -177,16 +177,9 @@ asio::error_code win_iocp_socket_service_base::close(
             reinterpret_cast<void**>(&reactor_), 0, 0));
     if (r)
       r->deregister_descriptor(impl.socket_, impl.reactor_data_, true);
-
-    socket_ops::close(impl.socket_, impl.state_, false, ec);
-
-    if (r)
-      r->cleanup_descriptor_data(impl.reactor_data_);
   }
-  else
-  {
-    ec = asio::error_code();
-  }
+
+  socket_ops::close(impl.socket_, impl.state_, false, ec);
 
   impl.socket_ = invalid_socket;
   impl.state_ = 0;
@@ -198,39 +191,6 @@ asio::error_code win_iocp_socket_service_base::close(
   return ec;
 }
 
-socket_type win_iocp_socket_service_base::release(
-    win_iocp_socket_service_base::base_implementation_type& impl,
-    asio::error_code& ec)
-{
-  if (!is_open(impl))
-    return invalid_socket;
-
-  cancel(impl, ec);
-  if (ec)
-    return invalid_socket;
-
-  nt_set_info_fn fn = get_nt_set_info();
-  if (fn == 0)
-  {
-    ec = asio::error::operation_not_supported;
-    return invalid_socket;
-  }
-
-  HANDLE sock_as_handle = reinterpret_cast<HANDLE>(impl.socket_);
-  ULONG_PTR iosb[2] = { 0, 0 };
-  void* info[2] = { 0, 0 };
-  if (fn(sock_as_handle, iosb, &info, sizeof(info),
-        61 /* FileReplaceCompletionInformation */))
-  {
-    ec = asio::error::operation_not_supported;
-    return invalid_socket;
-  }
-
-  socket_type tmp = impl.socket_;
-  impl.socket_ = invalid_socket;
-  return tmp;
-}
-
 asio::error_code win_iocp_socket_service_base::cancel(
     win_iocp_socket_service_base::base_implementation_type& impl,
     asio::error_code& ec)
@@ -240,6 +200,9 @@ asio::error_code win_iocp_socket_service_base::cancel(
     ec = asio::error::bad_descriptor;
     return ec;
   }
+
+#pragma warning( push )
+#pragma warning( disable : 4191)
 
   ASIO_HANDLER_OPERATION((iocp_service_.context(),
         "socket", &impl, impl.socket_, "cancel"));
@@ -273,6 +236,8 @@ asio::error_code win_iocp_socket_service_base::cancel(
       ec = asio::error_code();
     }
   }
+
+#pragma warning( pop ) 
 #if defined(ASIO_ENABLE_CANCELIO)
   else if (impl.safe_cancellation_thread_id_ == 0)
   {
@@ -671,14 +636,10 @@ void win_iocp_socket_service_base::close_for_destruction(
             reinterpret_cast<void**>(&reactor_), 0, 0));
     if (r)
       r->deregister_descriptor(impl.socket_, impl.reactor_data_, true);
-
-    asio::error_code ignored_ec;
-    socket_ops::close(impl.socket_, impl.state_, true, ignored_ec);
-
-    if (r)
-      r->cleanup_descriptor_data(impl.reactor_data_);
   }
 
+  asio::error_code ignored_ec;
+  socket_ops::close(impl.socket_, impl.state_, true, ignored_ec);
   impl.socket_ = invalid_socket;
   impl.state_ = 0;
   impl.cancel_token_.reset();
@@ -707,7 +668,7 @@ select_reactor& win_iocp_socket_service_base::get_reactor()
           reinterpret_cast<void**>(&reactor_), 0, 0));
   if (!r)
   {
-    r = &(use_service<select_reactor>(context_));
+    r = &(use_service<select_reactor>(io_context_));
     interlocked_exchange_pointer(reinterpret_cast<void**>(&reactor_), r);
   }
   return *r;
@@ -748,24 +709,6 @@ win_iocp_socket_service_base::get_connect_ex(
 #endif // defined(ASIO_DISABLE_CONNECTEX)
 }
 
-win_iocp_socket_service_base::nt_set_info_fn
-win_iocp_socket_service_base::get_nt_set_info()
-{
-  void* ptr = interlocked_compare_exchange_pointer(&nt_set_info_, 0, 0);
-  if (!ptr)
-  {
-    if (HMODULE h = ::GetModuleHandleA("NTDLL.DLL"))
-      ptr = reinterpret_cast<void*>(GetProcAddress(h, "NtSetInformationFile"));
-
-    // On failure, set nt_set_info_ to a special value to indicate that the
-    // NtSetInformationFile function is unavailable. That way we won't bother
-    // trying to look it up again.
-    interlocked_exchange_pointer(&nt_set_info_, ptr ? ptr : this);
-  }
-
-  return reinterpret_cast<nt_set_info_fn>(ptr == this ? 0 : ptr);
-}
-
 void* win_iocp_socket_service_base::interlocked_compare_exchange_pointer(
     void** dest, void* exch, void* cmp)
 {
@@ -774,7 +717,7 @@ void* win_iocp_socket_service_base::interlocked_compare_exchange_pointer(
         reinterpret_cast<PLONG>(dest), reinterpret_cast<LONG>(exch),
         reinterpret_cast<LONG>(cmp)));
 #else
-  return InterlockedCompareExchangePointer(dest, exch, cmp);
+	return _InterlockedCompareExchangePointer(dest, exch, cmp);
 #endif
 }
 
@@ -782,10 +725,10 @@ void* win_iocp_socket_service_base::interlocked_exchange_pointer(
     void** dest, void* val)
 {
 #if defined(_M_IX86)
-  return reinterpret_cast<void*>(InterlockedExchange(
-        reinterpret_cast<PLONG>(dest), reinterpret_cast<LONG>(val)));
+	return reinterpret_cast<void*>(InterlockedExchange(
+		reinterpret_cast<PLONG>(dest), reinterpret_cast<LONG>(val)));
 #else
-  return InterlockedExchangePointer(dest, val);
+	return InterlockedExchangePointer(dest, val);
 #endif
 }
 

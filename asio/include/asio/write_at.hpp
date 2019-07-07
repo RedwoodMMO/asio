@@ -2,7 +2,7 @@
 // write_at.hpp
 // ~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -32,8 +32,7 @@ namespace asio {
 /**
  * @defgroup write_at asio::write_at
  *
- * @brief The @c write_at function is a composed operation that writes a
- * certain amount of data at a specified offset before returning.
+ * @brief Write a certain amount of data at a specified offset before returning.
  */
 /*@{*/
 
@@ -393,9 +392,8 @@ std::size_t write_at(SyncRandomAccessWriteDevice& d, uint64_t offset,
 /**
  * @defgroup async_write_at asio::async_write_at
  *
- * @brief The @c async_write_at function is a composed asynchronous operation
- * that writes a certain amount of data at the specified offset before
- * completion.
+ * @brief Start an asynchronous operation to write a certain amount of data at
+ * the specified offset.
  */
 /*@{*/
 
@@ -442,9 +440,9 @@ std::size_t write_at(SyncRandomAccessWriteDevice& d, uint64_t offset,
  *   std::size_t bytes_transferred
  * ); @endcode
  * Regardless of whether the asynchronous operation completes immediately or
- * not, the handler will not be invoked from within this function. On
- * immediate completion, invocation of the handler will be performed in a
- * manner equivalent to using asio::post().
+ * not, the handler will not be invoked from within this function. Invocation of
+ * the handler will be performed in a manner equivalent to using
+ * asio::io_context::post().
  *
  * @par Example
  * To write a single data buffer use the @ref buffer function as follows:
@@ -520,9 +518,9 @@ async_write_at(AsyncRandomAccessWriteDevice& d, uint64_t offset,
  *   std::size_t bytes_transferred
  * ); @endcode
  * Regardless of whether the asynchronous operation completes immediately or
- * not, the handler will not be invoked from within this function. On
- * immediate completion, invocation of the handler will be performed in a
- * manner equivalent to using asio::post().
+ * not, the handler will not be invoked from within this function. Invocation of
+ * the handler will be performed in a manner equivalent to using
+ * asio::io_context::post().
  *
  * @par Example
  * To write a single data buffer use the @ref buffer function as follows:
@@ -587,9 +585,9 @@ async_write_at(AsyncRandomAccessWriteDevice& d,
  *   std::size_t bytes_transferred
  * ); @endcode
  * Regardless of whether the asynchronous operation completes immediately or
- * not, the handler will not be invoked from within this function. On
- * immediate completion, invocation of the handler will be performed in a
- * manner equivalent to using asio::post().
+ * not, the handler will not be invoked from within this function. Invocation of
+ * the handler will be performed in a manner equivalent to using
+ * asio::io_context::post().
  */
 template <typename AsyncRandomAccessWriteDevice, typename Allocator,
     typename WriteHandler>
@@ -653,9 +651,9 @@ async_write_at(AsyncRandomAccessWriteDevice& d, uint64_t offset,
  *   std::size_t bytes_transferred
  * ); @endcode
  * Regardless of whether the asynchronous operation completes immediately or
- * not, the handler will not be invoked from within this function. On
- * immediate completion, invocation of the handler will be performed in a
- * manner equivalent to using asio::post().
+ * not, the handler will not be invoked from within this function. Invocation of
+ * the handler will be performed in a manner equivalent to using
+ * asio::io_context::post().
  */
 template <typename AsyncRandomAccessWriteDevice, typename Allocator,
     typename CompletionCondition, typename WriteHandler>

@@ -2,7 +2,7 @@
 // detail/impl/reactive_descriptor_service.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2016 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -30,9 +30,9 @@ namespace asio {
 namespace detail {
 
 reactive_descriptor_service::reactive_descriptor_service(
-    execution_context& context)
-  : execution_context_service_base<reactive_descriptor_service>(context),
-    reactor_(asio::use_service<reactor>(context))
+    asio::io_context& io_context)
+  : service_base<reactive_descriptor_service>(io_context),
+    reactor_(asio::use_service<reactor>(io_context))
 {
   reactor_.init_task();
 }
@@ -89,12 +89,10 @@ void reactive_descriptor_service::destroy(
 
     reactor_.deregister_descriptor(impl.descriptor_, impl.reactor_data_,
         (impl.state_ & descriptor_ops::possible_dup) == 0);
-
-    asio::error_code ignored_ec;
-    descriptor_ops::close(impl.descriptor_, impl.state_, ignored_ec);
-
-    reactor_.cleanup_descriptor_data(impl.reactor_data_);
   }
+
+  asio::error_code ignored_ec;
+  descriptor_ops::close(impl.descriptor_, impl.state_, ignored_ec);
 }
 
 asio::error_code reactive_descriptor_service::assign(
@@ -132,15 +130,9 @@ asio::error_code reactive_descriptor_service::close(
 
     reactor_.deregister_descriptor(impl.descriptor_, impl.reactor_data_,
         (impl.state_ & descriptor_ops::possible_dup) == 0);
-
-    descriptor_ops::close(impl.descriptor_, impl.state_, ec);
-
-    reactor_.cleanup_descriptor_data(impl.reactor_data_);
   }
-  else
-  {
-    ec = asio::error_code();
-  }
+
+  descriptor_ops::close(impl.descriptor_, impl.state_, ec);
 
   // The descriptor is closed by the OS even if close() returns an error.
   //
@@ -165,7 +157,6 @@ reactive_descriptor_service::release(
           "descriptor", &impl, impl.descriptor_, "release"));
 
     reactor_.deregister_descriptor(impl.descriptor_, impl.reactor_data_, false);
-    reactor_.cleanup_descriptor_data(impl.reactor_data_);
     construct(impl);
   }
 
