@@ -243,7 +243,11 @@ asio::error_code win_iocp_handle_service::cancel(
   {
     // The version of Windows supports cancellation from any thread.
     typedef BOOL (WINAPI* cancel_io_ex_t)(HANDLE, LPOVERLAPPED);
+
+#pragma warning( push ) 
+#pragma warning( disable : 4191)
     cancel_io_ex_t cancel_io_ex = (cancel_io_ex_t)cancel_io_ex_ptr;
+#pragma warning(pop)
     if (!cancel_io_ex(impl.handle_, 0))
     {
       DWORD last_error = ::GetLastError();

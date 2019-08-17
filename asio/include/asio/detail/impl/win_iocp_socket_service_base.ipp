@@ -249,7 +249,10 @@ asio::error_code win_iocp_socket_service_base::cancel(
   {
     // The version of Windows supports cancellation from any thread.
     typedef BOOL (WINAPI* cancel_io_ex_t)(HANDLE, LPOVERLAPPED);
+#pragma warning( push ) 
+#pragma warning( disable : 4191)
     cancel_io_ex_t cancel_io_ex = (cancel_io_ex_t)cancel_io_ex_ptr;
+#pragma warning ( pop )
     socket_type sock = impl.socket_;
     HANDLE sock_as_handle = reinterpret_cast<HANDLE>(sock);
     if (!cancel_io_ex(sock_as_handle, 0))
