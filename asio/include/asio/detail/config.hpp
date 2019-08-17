@@ -28,6 +28,13 @@
 # define ASIO_HAS_BOOST_CONFIG 1
 #endif // defined(ASIO_STANDALONE)
 
+#if !defined(TRUE)
+# define TRUE 1
+#endif
+#if !defined(FALSE)
+# define FALSE 0 
+#endif
+
 // Default to a header-only implementation. The user must specifically request
 // separate compilation by defining either ASIO_SEPARATE_COMPILATION or
 // ASIO_DYN_LINK (as a DLL/shared library implies separate compilation).
@@ -339,7 +346,7 @@
 
 // Compliant C++11 compilers put noexcept specifiers on error_category members.
 #if !defined(ASIO_ERROR_CATEGORY_NOEXCEPT)
-# if (BOOST_VERSION >= 105300)
+# if defined(BOOST_VERSION) && (BOOST_VERSION >= 105300)
 #  define ASIO_ERROR_CATEGORY_NOEXCEPT BOOST_NOEXCEPT
 # elif defined(__clang__)
 #  if __has_feature(__cxx_noexcept__)
@@ -500,7 +507,7 @@
 // Boost support for chrono.
 #if !defined(ASIO_HAS_BOOST_CHRONO)
 # if !defined(ASIO_DISABLE_BOOST_CHRONO)
-#  if (BOOST_VERSION >= 104700)
+#  if defined(BOOST_VERSION) && (BOOST_VERSION >= 104700)
 #   define ASIO_HAS_BOOST_CHRONO 1
 #  endif // (BOOST_VERSION >= 104700)
 # endif // !defined(ASIO_DISABLE_BOOST_CHRONO)
@@ -1037,6 +1044,13 @@
 #  endif // defined(ASIO_HAS_EPOLL)
 # endif // !defined(ASIO_HAS_TIMERFD)
 #endif // defined(__linux__)
+
+#if defined(__ANDROID__)
+# define ASIO_THREAD_HAS_MONO_CLOCK
+#  if defined(__ANDROID_API__) && __ANDROID_API__ >= 21
+#   define ASIO_THREAD_INTERNAL_CLOCK_IS_MONO
+#  endif
+#endif
 
 // Mac OS X, FreeBSD, NetBSD, OpenBSD: kqueue.
 #if (defined(__MACH__) && defined(__APPLE__)) \
