@@ -1038,7 +1038,7 @@
 # endif // !defined(ASIO_HAS_EVENTFD)
 # if !defined(ASIO_HAS_TIMERFD)
 #  if defined(ASIO_HAS_EPOLL)
-#   if (__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 8)
+#   if defined (__GLIBC__) && ((__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 8))
 #    define ASIO_HAS_TIMERFD 1
 #   endif // (__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 8)
 #  endif // defined(ASIO_HAS_EPOLL)
@@ -1459,7 +1459,7 @@
 #  endif // defined(ASIO_MSVC)
 # endif // !defined(ASIO_DISABLE_CO_AWAIT)
 # if defined(__clang__)
-#  if (__cpp_coroutines >= 201703)
+#  if defined(__cpp_coroutines) && (__cpp_coroutines >= 201703)
 #   if __has_include(<experimental/coroutine>)
 #    define ASIO_HAS_CO_AWAIT 1
 #   endif // __has_include(<experimental/coroutine>)
