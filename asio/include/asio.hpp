@@ -67,6 +67,17 @@
 #include "asio/io_context_strand.hpp"
 #include "asio/io_service.hpp"
 #include "asio/io_service_strand.hpp"
+
+#if (defined(PLATFORM_LINUX) && PLATFORM_LINUX) || (defined(PLATFORM_ANDROID) && PLATFORM_ANDROID)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshadow"
+#endif
+
+#if (defined(PLATFORM_MAC) && PLATFORM_MAC)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
+
 #include "asio/ip/address.hpp"
 #include "asio/ip/address_v4.hpp"
 #include "asio/ip/address_v4_iterator.hpp"
@@ -90,6 +101,16 @@
 #include "asio/ip/udp.hpp"
 #include "asio/ip/unicast.hpp"
 #include "asio/ip/v6_only.hpp"
+
+#if defined(PLATFORM_LINUX) && PLATFORM_LINUX
+#pragma clang diagnostic pop
+#endif
+
+#if (defined(PLATFORM_MAC) && PLATFORM_MAC)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
+
 #include "asio/is_executor.hpp"
 #include "asio/is_read_buffered.hpp"
 #include "asio/is_write_buffered.hpp"
