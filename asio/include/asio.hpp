@@ -107,8 +107,7 @@
 #endif
 
 #if (defined(PLATFORM_MAC) && PLATFORM_MAC)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
+#pragma GCC diagnostic pop
 #endif
 
 #include "asio/is_executor.hpp"
