@@ -60,6 +60,16 @@ public:
   static const flags address_configured = implementation_defined;
 #else
 
+#if (defined(PLATFORM_LINUX) && PLATFORM_LINUX) || (defined(PLATFORM_ANDROID) && PLATFORM_ANDROID)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshadow"
+#endif
+
+#if (defined(PLATFORM_MAC) && PLATFORM_MAC) || (defined(PLATFORM_IOS) && PLATFORM_IOS)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
+
   enum flags
   {
     canonical_name = ASIO_OS_DEF(AI_CANONNAME),
@@ -70,6 +80,14 @@ public:
     all_matching = ASIO_OS_DEF(AI_ALL),
     address_configured = ASIO_OS_DEF(AI_ADDRCONFIG)
   };
+
+#if defined(PLATFORM_LINUX) && PLATFORM_LINUX
+#pragma clang diagnostic pop
+#endif
+
+#if (defined(PLATFORM_MAC) && PLATFORM_MAC) || (defined(PLATFORM_IOS) && PLATFORM_IOS)
+#pragma GCC diagnostic pop
+#endif
 
   // Implement bitmask operations as shown in C++ Std [lib.bitmask.types].
 
